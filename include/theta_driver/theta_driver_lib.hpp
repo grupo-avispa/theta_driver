@@ -20,15 +20,16 @@ public:
     bool init();
     bool open();
     void publishImage(GstMapInfo map);
-
+    void update_params();
     bool streaming_ = false;
     uvc_device_handle_t* devh_;
     uvc_stream_ctrl_t ctrl_;
     uvc_context_t* ctx_;
-    bool use4k_ = false;
-    std::string serial_ = "";
-    std::string camera_frame_ = "camera_link";
+    bool use4k_;
+    std::string serial_;
+    std::string camera_frame_;
     std::string pipeline_;
+    std::string image_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 };
 

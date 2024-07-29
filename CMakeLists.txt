@@ -24,12 +24,50 @@ find_package(sensor_msgs REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Boost 1.53 REQUIRED system thread timer)
-find_package(libuvc REQUIRED)
+find_package(nav2_util REQUIRED)
 
-find_package(PkgConfig)
-pkg_check_modules(GSTREAMER_1_0 gstreamer-1.0)
-pkg_check_modules(GSTREAMER_1_0_APP gstreamer-app-1.0)
-pkg_check_modules(LibUVC libuvc)
+find_library( LibUVC 
+  NAMES libuvc.so
+  PATHS
+  /usr/local/lib/
+  /usr/local
+  /usr
+)
+# Verificar si la biblioteca fue encontrada
+if(LibUVC)
+    message("Found LibUVC at ${LibUVC}")
+else()
+    message("Could not find LibUVC")
+endif()
+
+# Check for GStreamer
+find_library( LIB_GSTAPP 
+  NAMES libgstapp-1.0.so
+  PATHS
+  /usr/lib/x86_64-linux-gnu/
+  /usr/lib
+  /usr
+)
+# Verificar si la biblioteca fue encontrada
+if(LIB_GSTAPP)
+    message("Found gst LIB_GSTAPP at ${LIB_GSTAPP}")
+else()
+    message("Could not find LIB_GSTAPP")
+endif()
+
+pkg_check_modules(GSTREAMER_1_0 REQUIRED gstreamer-1.0)
+pkg_check_modules(GSTREAMER_1_0_APP REQUIRED gstreamer-app-1.0)
+
+if(GSTREAMER_1_0_FOUND AND GSTREAMER_1_0_APP_FOUND)
+    message("GStreamer 1.0 found:")
+    message("  Include directories: ${GSTREAMER_1_0_INCLUDE_DIRS}")
+    message("  Libraries: ${GSTREAMER_1_0_LIBRARIES}")
+    message("GStreamer App found:")
+    message("  Include directories: ${GSTREAMER_1_0_APP_INCLUDE_DIRS}")
+    message("  Libraries: ${GSTREAMER_1_0_APP_LIBRARIES}")
+else()
+    message("Could not find GStreamer or GStreamer App")
+endif()
 
 include_directories(
   include
@@ -42,25 +80,31 @@ set(dependencies
   rclcpp
   std_msgs
   sensor_msgs
+  nav2_util
   std_srvs
   rclcpp_components
 )
 
+set(node_plugins "")
+
 # Add library and dependencies
-add_library(theta_driver_lib SHARED
-  src/theta_driver_lib.cpp 
-  3rd/libuvc-theta-sample/gst/thetauvc.c)
-rclcpp_components_register_node(theta_driver_lib PLUGIN "theta_driver::ThetaDriver" EXECUTABLE theta_driver_node)
+add_library(theta_driver_lib SHARED src/theta_driver_lib.cpp)
+rclcpp_components_register_nodes(theta_driver_lib "theta_driver::ThetaDriver")
 ament_target_dependencies(theta_driver_lib
   ${dependencies}
   OpenCV
+  GSTREAMER_1_0
   Boost
 )
-target_link_libraries(theta_driver_lib
-  ${GSTREAMER_1_0_LIBRARIES}
-  ${GSTREAMER_1_0_APP_LIBRARIES}
-  LibUVC::UVCShared
-)
+target_link_libraries(theta_driver_lib 
+  ${LIB_GSTAPP} 
+  ${LibUVC})
+# Add executable and dependencies
+add_executable(theta_driver_node 
+  src/theta_driver_node.cpp
+  3rd/libuvc-theta-sample/gst/thetauvc.c)
+target_link_libraries(theta_driver_node theta_driver_lib)
+ament_target_dependencies(theta_driver_node ${dependencies})
 
 if(NOT WIN32)
   ament_environment_hooks(
@@ -83,6 +127,14 @@ install(TARGETS
 
 install(DIRECTORY include/ 
   DESTINATION include/
+)
+
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}/
+)
+
+install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}/
 )
 
 ament_export_include_directories(

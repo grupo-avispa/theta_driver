@@ -1,0 +1,6 @@
+theta_driver:
+  ros__parameters:
+    use4k: False
+    serial: ""
+    camera_frame: theta_optical_link
+    image_topic: theta/image_raw
